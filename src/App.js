@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 import MoviesList from "./components/MoviesList";
 import "./App.css";
+import AddMovie from "./components/AddMovie";
 
 function App() {
   // const dummyMovies = [
@@ -23,6 +24,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Promises
   // const fetchMoviesHandler = () => {
   //   // fetch("https://swapi.py4e.com/"); // https://swapi.dev/
   //   fetch("https://swapi.dev/api/films/")
@@ -43,31 +45,62 @@ function App() {
   // };
 
   // async await syntax
-  const fetchMoviesHandler = async () => {
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
     setError(null); // to clear any previous errors we might have gotten
     try {
-      const response = await fetch("https://swapi.dev/api/films/");
+      // const response = await fetch("https://swapi.dev/api/films/");
+      const response = await fetch("firebase/endpoint/movies");
       if (!response.ok) {
         throw new Error("Something went wrong");
       }
       const data = await response.json();
-      const transformedMovies = data.results.map((movieData) => {
-        return {
-          id: movieData.episode_id,
-          title: movieData.title,
-          openingText: movieData.opening_crawl,
-          releaseDate: movieData.release_date,
-        };
-      });
-      setMovies(transformedMovies);
-      setIsLoading(false);
+      // const transformedMovies = data.results.map((movieData) => {
+      //   return {
+      //     id: movieData.episode_id,
+      //     title: movieData.title,
+      //     openingText: movieData.opening_crawl,
+      //     releaseDate: movieData.release_date,
+      //   };
+      // });
+      // setMovies(transformedMovies);
+
+      const loadedMovies = [];
+
+      for (const key in data) {
+        loadedMovies.push({
+          id: key,
+          title: data[key].title,
+          openingText: data[key].openingText,
+          releaseDate: data[key].releaseDate,
+        });
+      }
+      setMovies(loadedMovies);
     } catch (error) {
       setError(error.message);
       // setIsLoading(false);
     }
     setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+  // fetchMoviesHandler is used as a dependency and it could change if we are using some external state in this function
+  // the fetchMoviesHandler function as dependency is recreated everytime and therefore changes with every render, sets state and created infinite loop
+  // to avoid this wrap it inside callBack hook.
+
+  async function addMovieHandler(movie) {
+    const response = await fetch("firebase/endpoint/addMovie", {
+      method: "POST",
+      body: JSON.stringify(movie),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await response.json();
+    console.log(data);
+  }
 
   let content = <p>No movies to show. Fetch them!</p>;
 
@@ -85,6 +118,9 @@ function App() {
 
   return (
     <React.Fragment>
+      <section>
+        <AddMovie onAddMovie={addMovieHandler} />
+      </section>
       <section>
         <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
